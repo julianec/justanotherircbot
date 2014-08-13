@@ -9,7 +9,6 @@ import(
 )
 
 //var url_re = regexp.MustCompile(`\b(?:ht|f)tps?://[a-zA-Z0-9%_\+-]+\?[a-zA-Z0-9%_\+-=&]+\b`)
-//var url_re = regexp.MustCompile(`\b(?:ht|f)tps?://[a-zA-Z0-9%_\+-]+\?[a-zA-Z0-9%_\+-=&]+`)
 var url_re = regexp.MustCompile(`\bhttps?://[^\s]+\b`)
 
 func logprivmsgs(event *irc.Event){
@@ -17,7 +16,7 @@ func logprivmsgs(event *irc.Event){
 }
 func writeurltitle(event *irc.Event){
         //var url string
-        log.Print(url_re.FindAllString(event.Arguments[1], -1))
+        log.Print(url_re.FindAllString(event.Arguments[1], 5))
 }
 
 func FindURLs(input string) []string {
