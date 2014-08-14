@@ -39,7 +39,9 @@ func writeurltitle(event *irc.Event) {
 
                 // No HTML?
                 contentType = resp.Header.Get("Content-Type")
-                if contentType != "text/html" && contentType != "application/xhtml+xml" {
+                // Content type does not start with "text/html" or "application/xhtml+xml"?
+                if !strings.HasPrefix(contentType, "text/html") && !strings.HasPrefix(contentType, "application/xhtml+xml") {
+                        log.Print("Wrong content type: ", contentType, " Expecting application/xhtml+xml or text/html")
                         continue
                 }
 
