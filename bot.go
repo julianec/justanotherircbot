@@ -7,6 +7,9 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
+        "net/http"
+        "io/ioutil"
+//        "code.google.com/p/go.net/html"
 )
 
 var url_re = regexp.MustCompile(`\bhttps?://[^\s]+\b`)
@@ -18,6 +21,9 @@ func logprivmsgs(event *irc.Event) {
 func writeurltitle(event *irc.Event) {
 	var urls []string = FindURLs(event.Arguments[1])
         var err error
+        var resp *http.Response
+        var contentType string
+        var respbody []byte
 
         // URL valid?
         for _, oneurl := range urls {
@@ -25,7 +31,34 @@ func writeurltitle(event *irc.Event) {
                 if err != nil {
                         continue
                 }
-                log.Print(oneurl)
+                resp, err = http.Head(oneurl)
+                if err != nil {
+                        log.Print("Error getting Head: ", err)
+                        continue
+                }
+
+                // No HTML?
+                contentType = resp.Header.Get("Content-Type")
+                if contentType != "text/html" && contentType != "application/xhtml+xml" {
+                        continue
+                }
+
+                // Get the Body
+                resp, err = http.Get(oneurl)
+                if err != nil {
+                        log.Print("Error during HTTP GET: ", err)
+                        continue
+                }
+                // Close later
+                defer resp.Body.Close()
+
+                // Create a slice of bytes from the body.
+                respbody, err = ioutil.ReadAll(resp.Body)
+                if err != nil {
+                        log.Print("Error reading the body: ", err)
+                        continue
+                }
+                log.Print(respbody[0], "1. Byte vom Body")
         }
 }
 
