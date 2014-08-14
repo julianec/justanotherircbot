@@ -2,11 +2,11 @@ package main
 
 import (
 	"github.com/thoj/go-ircevent"
+	"io/ioutil"
 	"log"
 	"net/http"
+	"net/url"
 	"strings"
-        "net/url"
-        "io/ioutil"
 )
 
 func logprivmsgs(event *irc.Event) {
