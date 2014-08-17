@@ -1,2 +1,4 @@
 ircbot
 *.swp
+*~
+httplogging/httplogging
