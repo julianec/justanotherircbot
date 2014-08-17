@@ -5,7 +5,7 @@ import (
 )
 
 // Global regexp vars
-var url_re = regexp.MustCompile(`\b(https?://\S+)[\s\.$]`) // Finds URLs
+var url_re = regexp.MustCompile(`(https?://\S+?)\.?(?:\s|$)`) // Finds URLs
 
 func FindURLs(input string) (ret []string) {
         var matches = url_re.FindAllStringSubmatch(input, 5)
