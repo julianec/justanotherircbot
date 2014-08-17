@@ -165,18 +165,18 @@ func (g *GithubRepository) String() string {
 
 func (g *GithubCommit) String() string {
         var lines []string = strings.Split(g.Message, "\n") // Commit message
-        var text string = g.Author.String() + " " + g.Id[0:7] // First 7 characters
+        var text string = g.Author.String() + " \x02" + g.Id[0:7] + "\x0f" // First 7 characters
 
         if len(g.Added) > 0 {
-                text += " a: " + strings.Join(g.Added, " ")
+                text += " \x0303" + strings.Join(g.Added, " ")+"\x0f"
         }
 
         if len(g.Removed) > 0 {
-                text += " d: " + strings.Join(g.Removed, " ")
+                text += " \x0304" + strings.Join(g.Removed, " ")+"\x0f"
         }
 
         if len(g.Modified) > 0 {
-                text += " m: " + strings.Join(g.Modified, " ")
+                text += " \x0310" + strings.Join(g.Modified, " ")+"\x0f"
         }
         if len(lines) > 0 {
                 text += " " + lines[0]
@@ -186,7 +186,7 @@ func (g *GithubCommit) String() string {
 
 func (g *GithubPush) Strings() []string {
         var refs []string = strings.Split(g.Ref, "/")
-        var prefix string = g.Repository.String()+ " " + refs[len(refs)-1]
+        var prefix string = "\x0303" + g.Repository.String()+ "\x0f \x0305" + refs[len(refs)-1] + "\x0f"
         var pushes []string = make([]string, 0)
 
         for _, commit := range g.Commits{
@@ -197,7 +197,7 @@ func (g *GithubPush) Strings() []string {
 }
 
 func (g *GithubCreate) String() string {
-	return g.Sender.String() + " has pushed a new " + g.RefType + " " + g.Ref + " to " + g.Repository.String()
+	return "\x0303" + g.Sender.String() + "\x0f has pushed a new " + g.RefType + " \x0305" + g.Ref + "\x0f to \x0303" + g.Repository.String() + "\x0f"
 }
 
 func (g *GitHubAdapter) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
