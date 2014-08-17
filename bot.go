@@ -16,6 +16,7 @@ func main() {
 	var channellist []string
 	var channelname string
 	var err error
+	var extractor *URLTitleExtractor
 
 	botname = flag.String("botname", "justanotherbot", "Name of the bot")
 	serveraddress = flag.String("server-address", "irc.freenode.org:6667", "Server Address")
@@ -29,6 +30,10 @@ func main() {
 		log.Fatal("Error connecting to server: ", err)
 	}
 
+	extractor = &URLTitleExtractor{
+		ircobject: myircbot,
+	}
+
 	//Join all channels.
 	for _, channelname = range channellist {
 		myircbot.Join(channelname)
@@ -36,7 +41,7 @@ func main() {
 
 	//Event handling
 	myircbot.AddCallback("PRIVMSG", logprivmsgs)
-	myircbot.AddCallback("PRIVMSG", writeurltitle)
+	myircbot.AddCallback("PRIVMSG", extractor.WriteURLTitle)
 
 	myircbot.Loop()
 }
