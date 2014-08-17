@@ -4,16 +4,16 @@ import (
 	"flag"
 	"github.com/thoj/go-ircevent"
 	"log"
-        "net/http"
+	"net/http"
 	"strings"
 )
 
-func launchhttpserver(bindto string){
-        var err error
-        err = http.ListenAndServe(bindto, nil)
-        if err != nil {
-                log.Fatal("Error starting http server: ", err)
-        }
+func launchhttpserver(bindto string) {
+	var err error
+	err = http.ListenAndServe(bindto, nil)
+	if err != nil {
+		log.Fatal("Error starting http server: ", err)
+	}
 }
 
 func main() {
@@ -25,13 +25,13 @@ func main() {
 	var channelname string
 	var err error
 	var extractor *URLTitleExtractor
-        var github *GitHubAdapter
-        var bindto *string
+	var github *GitHubAdapter
+	var bindto *string
 
 	botname = flag.String("botname", "justanotherbot", "Name of the bot")
 	serveraddress = flag.String("server-address", "irc.freenode.org:6667", "Server Address")
 	rawchannellist = flag.String("channels", "#ancient-solutions", "List of channels")
-        bindto = flag.String("bind-to", ":8080", "IP:Port pair to bind the http-server to")
+	bindto = flag.String("bind-to", ":8080", "IP:Port pair to bind the http-server to")
 	flag.Parse()
 
 	channellist = strings.Split(*rawchannellist, ",")
@@ -44,9 +44,9 @@ func main() {
 	extractor = &URLTitleExtractor{
 		ircobject: myircbot,
 	}
-        github = &GitHubAdapter{
-                ircbot: myircbot,
-        }
+	github = &GitHubAdapter{
+		ircbot: myircbot,
+	}
 
 	//Join all channels.
 	for _, channelname = range channellist {
@@ -57,10 +57,10 @@ func main() {
 	myircbot.AddCallback("PRIVMSG", logprivmsgs)
 	myircbot.AddCallback("PRIVMSG", extractor.WriteURLTitle)
 
-        http.Handle("/github", github)
+	http.Handle("/github", github)
 
-        // Start http server in a new thread
-        go launchhttpserver(*bindto)
+	// Start http server in a new thread
+	go launchhttpserver(*bindto)
 
 	myircbot.Loop()
 }
