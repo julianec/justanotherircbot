@@ -61,7 +61,7 @@ func (t *URLTitleExtractor) WriteURLTitle(event *irc.Event) {
 		// Close later
 		defer resp.Body.Close()
 
-		if strings.ToLower(foundcharset) != "utf-8" && strings.ToLower(foundcharset) != "utf8" {
+		if foundcharset != "" && strings.ToLower(foundcharset) != "utf-8" && strings.ToLower(foundcharset) != "utf8" {
 			log.Print("Converting from ", foundcharset, " to UTF-8")
 			ureader, err = charset.NewReader(foundcharset, resp.Body)
 			if err != nil {
