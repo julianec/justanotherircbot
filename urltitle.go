@@ -106,7 +106,7 @@ func (t *URLTitleExtractor) WriteURLTitle(event *irc.Event) {
 		}
 		if htmltag != nil && htmltag.FirstChild != nil && htmltag.FirstChild.Type == html.TextNode {
 			log.Print(htmltag.FirstChild.Data)
-                        t.ircobject.Privmsg(event.Arguments[0], "Title: "+htmltag.FirstChild.Data)
+                        t.ircobject.Privmsg(event.Arguments[0], "Title: "+strings.TrimSpace(htmltag.FirstChild.Data))
 		}
 	}
 }
