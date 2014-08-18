@@ -40,7 +40,7 @@ func main() {
 		err = proto.UnmarshalText(string(configdata), &config)
 	}
 	if err != nil {
-		log.Fatal("Error decoding config: ", err)
+		log.Fatal("Error parsing config: ", err)
 	}
 
 	myircbot = irc.IRC(config.GetBotName(), config.GetBotName())
