@@ -51,10 +51,7 @@ func main() {
 	extractor = &URLTitleExtractor{
 		ircobject: myircbot,
 	}
-	github = &GitHubAdapter{
-		ircbot: myircbot,
-		config: config.GetGithub(),
-	}
+	github = NewGitHubAdapter(myircbot, config.GetGithub())
 
 	//Join all channels.
 	for _, channelname = range config.GetIrcChannel() {
