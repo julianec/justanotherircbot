@@ -2,15 +2,16 @@ package main
 
 import (
 	"encoding/json"
-	"flag"
 	"github.com/thoj/go-ircevent"
 	"log"
 	"net/http"
-        "strings"
+	"strings"
 )
 
 type GitHubAdapter struct {
-	ircbot *irc.Connection
+	ircbot   *irc.Connection
+	config   *GitHubConfig
+	channels map[string]*GitHubRepositoryConfig
 }
 
 type GithubCreate struct {
@@ -139,12 +140,6 @@ type GithubCommit struct {
 	Modified  []string
 }
 
-var githubchannel string
-
-func init() {
-	flag.StringVar(&githubchannel, "github-channel", "#ancient-solutions", "Channel to post github messages to.")
-}
-
 func (g *GithubUser) String() string {
 	if len(g.Name) > 0 && len(g.Email) > 0 {
 		return g.Name + " <" + g.Email + ">"
@@ -164,40 +159,52 @@ func (g *GithubRepository) String() string {
 }
 
 func (g *GithubCommit) String() string {
-        var lines []string = strings.Split(g.Message, "\n") // Commit message
-        var text string = g.Author.String() + " \x02" + g.Id[0:7] + "\x0f" // First 7 characters
+	var lines []string = strings.Split(g.Message, "\n")                // Commit message
+	var text string = g.Author.String() + " \x02" + g.Id[0:7] + "\x0f" // First 7 characters
 
-        if len(g.Added) > 0 {
-                text += " \x0303" + strings.Join(g.Added, " ")+"\x0f"
-        }
+	if len(g.Added) > 0 {
+		text += " \x0303" + strings.Join(g.Added, " ") + "\x0f"
+	}
 
-        if len(g.Removed) > 0 {
-                text += " \x0304" + strings.Join(g.Removed, " ")+"\x0f"
-        }
+	if len(g.Removed) > 0 {
+		text += " \x0304" + strings.Join(g.Removed, " ") + "\x0f"
+	}
 
-        if len(g.Modified) > 0 {
-                text += " \x0310" + strings.Join(g.Modified, " ")+"\x0f"
-        }
-        if len(lines) > 0 {
-                text += " " + lines[0]
-        }
-        return text
+	if len(g.Modified) > 0 {
+		text += " \x0310" + strings.Join(g.Modified, " ") + "\x0f"
+	}
+	if len(lines) > 0 {
+		text += " " + lines[0]
+	}
+	return text
 }
 
 func (g *GithubPush) Strings() []string {
-        var refs []string = strings.Split(g.Ref, "/")
-        var prefix string = "\x0303" + g.Repository.String()+ "\x0f \x0305" + refs[len(refs)-1] + "\x0f"
-        var pushes []string = make([]string, 0)
+	var refs []string = strings.Split(g.Ref, "/")
+	var prefix string = "\x0303" + g.Repository.String() + "\x0f \x0305" + refs[len(refs)-1] + "\x0f"
+	var pushes []string = make([]string, 0)
 
-        for _, commit := range g.Commits{
-                pushes = append(pushes, prefix + " " + commit.String())
-                pushes = append(pushes, prefix + " " + commit.Url)
-        }
-        return pushes
+	for _, commit := range g.Commits {
+		pushes = append(pushes, prefix+" "+commit.String())
+		pushes = append(pushes, prefix+" "+commit.Url)
+	}
+	return pushes
 }
 
 func (g *GithubCreate) String() string {
 	return "\x0303" + g.Sender.String() + "\x0f has pushed a new " + g.RefType + " \x0305" + g.Ref + "\x0f to \x0303" + g.Repository.String() + "\x0f"
+}
+
+func NewGitHubAdapter(ircbot *irc.Connection, config *GitHubConfig) *GitHubAdapter {
+	var channels = make(map[string]*GitHubRepositoryConfig)
+	for _, repo := range config.Repo {
+		channels[repo.GetName()] = repo
+	}
+	return &GitHubAdapter{
+		ircbot:   ircbot,
+		config:   config,
+		channels: channels,
+	}
 }
 
 func (g *GitHubAdapter) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
@@ -205,27 +212,45 @@ func (g *GitHubAdapter) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	switch req.Header.Get("X-GitHub-Event") {
 	case "create":
 		var create GithubCreate
+                var githubconf *GitHubRepositoryConfig
+                var ok bool
 		var err error
 		err = jsondecoder.Decode(&create)
 		if err != nil {
 			log.Print("Error decoding github create: ", err)
-                        return
+			return
 		}
 		log.Print(create.String())
-		g.ircbot.Privmsg(githubchannel, create.String())
-        case "push":
-                var push GithubPush
-                var err error
-
-                err = jsondecoder.Decode(&push)
-
-                if err != nil {
-                        log.Print("Error decoding github push: ", err)
+                githubconf, ok = g.channels[create.Repository.String()]
+                if !ok {
+                        log.Print("Repository ", create.Repository.String(), " not configured.")
                         return
                 }
+                for _, channel := range githubconf.GetIrcChannel() {
+                        g.ircbot.Privmsg(channel, create.String())
+                }
+	case "push":
+		var push GithubPush
+                var ok bool
+                var githubconf *GitHubRepositoryConfig
+		var err error
 
-                for _, commit := range push.Strings() {
-                        g.ircbot.Privmsg(githubchannel, commit)
+		err = jsondecoder.Decode(&push)
+
+		if err != nil {
+			log.Print("Error decoding github push: ", err)
+			return
+		}
+
+                githubconf, ok = g.channels[push.Repository.String()]
+                if !ok {
+                        log.Print("Repository ", push.Repository.String(), " not configured.")
+                        return
+                }
+                for _, channel := range githubconf.GetIrcChannel() {
+                        for _, commit := range push.Strings() {
+                                g.ircbot.Privmsg(channel, commit)
+                        }
                 }
 	default:
 		log.Print("Unknown GitHub event.", req.Header.Get("X-GitHub-Event"))

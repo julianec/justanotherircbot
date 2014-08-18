@@ -1,4 +1,6 @@
 ircbot
+ircbot.conf
+*.pb.go
 *.swp
 *~
 httplogging/httplogging

@@ -14,12 +14,12 @@ func TestFindURLs(t *testing.T) {
 		"Dieser freche Text enthaelt einfach keine URLs!":                                              []string{},
 		"http://eins/ http://zwei/ http://drei/ http://vier/ http://fuenf/ http://sechs/ http://sie/":  []string{"http://eins/", "http://zwei/", "http://drei/", "http://vier/", "http://fuenf/"},
 		"http://www.duroehre.com/?bewegtesbild=foobarbaz":                                              []string{"http://www.duroehre.com/?bewegtesbild=foobarbaz"},
-                "Error getting Head: Head http://ipv4scan.com):: dial tcp: lookup ipv4scan.com): no":           []string{"http://ipv4scan.com"},
-                "Error getting Head: Head )http://ipv4scan.com(:: dial tcp: lookup ipv4scan.com): no":           []string{"http://ipv4scan.com"},
-                "Was machen wir eigentlich jetzt mit versehentlichen URLshttp://www.google.ch/ ?":              []string{"http://www.google.ch/"},
-                "Wie sieht es aus wenn man http://starship-factory.ch:8080/ sagt?":                     []string{"http://starship-factory.ch:8080/"},
-                "Wie sieht es aus wenn man http://starship-factory.ch:8080 sagt?":                     []string{"http://starship-factory.ch:8080"},
-                "Wie sieht es aus wenn man http://starship-factory.ch:8080/foo/bar?baz=foo?bar=baz sagt?":                     []string{"http://starship-factory.ch:8080/foo/bar?baz=foo?bar=baz"},
+		"Error getting Head: Head http://ipv4scan.com):: dial tcp: lookup ipv4scan.com): no":           []string{"http://ipv4scan.com"},
+		"Error getting Head: Head )http://ipv4scan.com(:: dial tcp: lookup ipv4scan.com): no":          []string{"http://ipv4scan.com"},
+		"Was machen wir eigentlich jetzt mit versehentlichen URLshttp://www.google.ch/ ?":              []string{"http://www.google.ch/"},
+		"Wie sieht es aus wenn man http://starship-factory.ch:8080/ sagt?":                             []string{"http://starship-factory.ch:8080/"},
+		"Wie sieht es aus wenn man http://starship-factory.ch:8080 sagt?":                              []string{"http://starship-factory.ch:8080"},
+		"Wie sieht es aus wenn man http://starship-factory.ch:8080/foo/bar?baz=foo?bar=baz sagt?":      []string{"http://starship-factory.ch:8080/foo/bar?baz=foo?bar=baz"},
 	}
 	for teststring, expected := range teststrings {
 		res = FindURLs(teststring)

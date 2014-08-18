@@ -1,0 +1,24 @@
+bot_name:               "justanotherbot" 
+server_address:         "irc.freenode.org:6667"
+irc_channel:            "#bots"
+irc_channel:            "#botn00bs"
+http_server_address:    ":8080"
+
+github {
+        repo {
+                name:           "julianec/ircbot"
+                secret:         "My secret passphrase."
+
+                # Send notifications to two channels in parallel
+                irc_channel:    "#botn00bs"
+                irc_channel:    "#bots"
+        }
+
+        repo {
+                name:           "starshipfactory/testrepo"
+                secret:         "Another secret passphrase."
+
+                # Notifications go to only one channel.
+                irc_channel:    "#botn00bs"
+        }
+}

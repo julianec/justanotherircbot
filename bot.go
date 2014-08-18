@@ -1,11 +1,12 @@
 package main
 
 import (
+	"code.google.com/p/goprotobuf/proto"
 	"flag"
 	"github.com/thoj/go-ircevent"
+	"io/ioutil"
 	"log"
 	"net/http"
-	"strings"
 )
 
 func launchhttpserver(bindto string) {
@@ -18,26 +19,32 @@ func launchhttpserver(bindto string) {
 
 func main() {
 	var myircbot *irc.Connection
-	var botname *string
-	var serveraddress *string
-	var rawchannellist *string
-	var channellist []string
 	var channelname string
 	var err error
 	var extractor *URLTitleExtractor
 	var github *GitHubAdapter
-	var bindto *string
+	var configpath string // path of config file
+	var configdata []byte
+	var config IRCBotConfig
 
-	botname = flag.String("botname", "justanotherbot", "Name of the bot")
-	serveraddress = flag.String("server-address", "irc.freenode.org:6667", "Server Address")
-	rawchannellist = flag.String("channels", "#ancient-solutions", "List of channels")
-	bindto = flag.String("bind-to", ":8080", "IP:Port pair to bind the http-server to")
+	flag.StringVar(&configpath, "config", "", "Specify the path to the configuration file.")
 	flag.Parse()
 
-	channellist = strings.Split(*rawchannellist, ",")
+	configdata, err = ioutil.ReadFile(configpath)
+	if err != nil {
+		log.Fatal("Error reading config file: ", err)
+	}
 
-	myircbot = irc.IRC(*botname, *botname)
-	if err = myircbot.Connect(*serveraddress); err != nil {
+	err = proto.Unmarshal(configdata, &config)
+	if err != nil {
+		err = proto.UnmarshalText(string(configdata), &config)
+	}
+	if err != nil {
+		log.Fatal("Error decoding config: ", err)
+	}
+
+	myircbot = irc.IRC(config.GetBotName(), config.GetBotName())
+	if err = myircbot.Connect(config.GetServerAddress()); err != nil {
 		log.Fatal("Error connecting to server: ", err)
 	}
 
@@ -46,10 +53,11 @@ func main() {
 	}
 	github = &GitHubAdapter{
 		ircbot: myircbot,
+		config: config.GetGithub(),
 	}
 
 	//Join all channels.
-	for _, channelname = range channellist {
+	for _, channelname = range config.GetIrcChannel() {
 		myircbot.Join(channelname)
 	}
 
@@ -60,7 +68,7 @@ func main() {
 	http.Handle("/github", github)
 
 	// Start http server in a new thread
-	go launchhttpserver(*bindto)
+	go launchhttpserver(config.GetHttpServerAddress())
 
 	myircbot.Loop()
 }
