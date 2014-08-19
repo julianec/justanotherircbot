@@ -62,6 +62,7 @@ func main() {
 	myircbot.AddCallback("PRIVMSG", logprivmsgs)
 	myircbot.AddCallback("PRIVMSG", extractor.WriteURLTitle)
 
+	// Write GitHub status messages to the specified channels
 	http.Handle("/github", github)
 
 	// Start http server in a new thread

@@ -1,8 +1,16 @@
 package main
 
 import (
+	"crypto/hmac"
+	"crypto/md5"
+	"crypto/sha1"
+	"crypto/sha256"
+	"crypto/sha512"
+	"encoding/hex"
 	"encoding/json"
 	"github.com/thoj/go-ircevent"
+	"hash"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"strings"
@@ -140,6 +148,35 @@ type GithubCommit struct {
 	Modified  []string
 }
 
+// CheckMAC returns true if messageMAC is a valid HMAC tag for message.
+func CheckMAC(message []byte, messageMAC string, key string) bool {
+	var err error
+	var mac hash.Hash
+	var macdata []byte
+	var macparts = strings.Split(messageMAC, "=")
+	macdata, err = hex.DecodeString(macparts[1])
+	if err != nil {
+		log.Print("Error decoding hex digest: ", err)
+		return false
+	}
+	switch macparts[0] {
+	case "md5":
+		mac = hmac.New(md5.New, []byte(key))
+	case "sha1":
+		mac = hmac.New(sha1.New, []byte(key))
+	case "sha256":
+		mac = hmac.New(sha256.New, []byte(key))
+	case "sha512":
+		mac = hmac.New(sha512.New, []byte(key))
+	default:
+		log.Print("Unsupported hash: ", macparts[0])
+		return false
+	}
+	mac.Write(message)
+	expectedMAC := mac.Sum(nil)
+	return hmac.Equal(macdata, expectedMAC)
+}
+
 func (g *GithubUser) String() string {
 	if len(g.Name) > 0 && len(g.Email) > 0 {
 		return g.Name + " <" + g.Email + ">"
@@ -208,50 +245,61 @@ func NewGitHubAdapter(ircbot *irc.Connection, config *GitHubConfig) *GitHubAdapt
 }
 
 func (g *GitHubAdapter) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
-	var jsondecoder = json.NewDecoder(req.Body)
+	var body []byte
+	var err error
+	body, err = ioutil.ReadAll(req.Body)
+	if err != nil {
+		log.Print("Error reading body: ", err)
+		return
+	}
+
 	switch req.Header.Get("X-GitHub-Event") {
 	case "create":
 		var create GithubCreate
-                var githubconf *GitHubRepositoryConfig
-                var ok bool
+		var githubconf *GitHubRepositoryConfig
+		var ok bool
 		var err error
-		err = jsondecoder.Decode(&create)
+		err = json.Unmarshal(body, &create)
 		if err != nil {
 			log.Print("Error decoding github create: ", err)
 			return
 		}
 		log.Print(create.String())
-                githubconf, ok = g.channels[create.Repository.String()]
-                if !ok {
-                        log.Print("Repository ", create.Repository.String(), " not configured.")
-                        return
-                }
-                for _, channel := range githubconf.GetIrcChannel() {
-                        g.ircbot.Privmsg(channel, create.String())
-                }
+		githubconf, ok = g.channels[create.Repository.String()]
+		if !ok {
+			log.Print("Repository ", create.Repository.String(), " not configured.")
+			return
+		}
+		if !CheckMAC(body, req.Header.Get("X-Hub-Signature"), githubconf.GetSecret()) {
+			log.Print("DEBUG Spam, spam spam")
+			return
+		}
+		for _, channel := range githubconf.GetIrcChannel() {
+			g.ircbot.Privmsg(channel, create.String())
+		}
 	case "push":
 		var push GithubPush
-                var ok bool
-                var githubconf *GitHubRepositoryConfig
+		var ok bool
+		var githubconf *GitHubRepositoryConfig
 		var err error
 
-		err = jsondecoder.Decode(&push)
+		err = json.Unmarshal(body, &push)
 
 		if err != nil {
 			log.Print("Error decoding github push: ", err)
 			return
 		}
 
-                githubconf, ok = g.channels[push.Repository.String()]
-                if !ok {
-                        log.Print("Repository ", push.Repository.String(), " not configured.")
-                        return
-                }
-                for _, channel := range githubconf.GetIrcChannel() {
-                        for _, commit := range push.Strings() {
-                                g.ircbot.Privmsg(channel, commit)
-                        }
-                }
+		githubconf, ok = g.channels[push.Repository.String()]
+		if !ok {
+			log.Print("Repository ", push.Repository.String(), " not configured.")
+			return
+		}
+		for _, channel := range githubconf.GetIrcChannel() {
+			for _, commit := range push.Strings() {
+				g.ircbot.Privmsg(channel, commit)
+			}
+		}
 	default:
 		log.Print("Unknown GitHub event.", req.Header.Get("X-GitHub-Event"))
 	}

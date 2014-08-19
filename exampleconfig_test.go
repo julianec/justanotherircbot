@@ -1,23 +1,23 @@
 package main
 
 import (
-        "testing"
-        "code.google.com/p/goprotobuf/proto"
-        "io/ioutil"
+	"code.google.com/p/goprotobuf/proto"
+	"io/ioutil"
+	"testing"
 )
 
 func TestExampleConfig(t *testing.T) {
-        var configdata[]byte
-        var config IRCBotConfig
-        var err error
+	var configdata []byte
+	var config IRCBotConfig
+	var err error
 
-        configdata, err = ioutil.ReadFile("exampleconfig")
-        if err != nil {
-                t.Error("Error reading exampleconfig: ", err)
-        }
+	configdata, err = ioutil.ReadFile("exampleconfig")
+	if err != nil {
+		t.Error("Error reading exampleconfig: ", err)
+	}
 
-        err = proto.UnmarshalText(string(configdata), &config)
-        if err != nil {
-                t.Error("Error parsing config file: ", err)
-        }
+	err = proto.UnmarshalText(string(configdata), &config)
+	if err != nil {
+		t.Error("Error parsing config file: ", err)
+	}
 }
