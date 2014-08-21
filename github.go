@@ -32,6 +32,14 @@ type GithubCreate struct {
 	Sender       GithubUser
 }
 
+type GithubDelete struct {
+        Ref             string
+        RefType         string `json:"ref_type"`
+        PusherType      string
+        Repository      GithubRepository
+        Sender          GithubUser
+}
+
 type GithubRepository struct {
 	Id               uint64
 	Name             string
@@ -232,6 +240,10 @@ func (g *GithubCreate) String() string {
 	return "\x0303" + g.Sender.String() + "\x0f has pushed a new " + g.RefType + " \x0305" + g.Ref + "\x0f to \x0303" + g.Repository.String() + "\x0f"
 }
 
+func (g *GithubDelete) String() string {
+	return "\x0303" + g.Sender.String() + "\x0f has deleted a " + g.RefType + " \x0305" + g.Ref + "\x0f from \x0303" + g.Repository.String() + "\x0f"
+}
+
 func NewGitHubAdapter(ircbot *irc.Connection, config *GitHubConfig) *GitHubAdapter {
 	var channels = make(map[string]*GitHubRepositoryConfig)
 	for _, repo := range config.Repo {
@@ -276,6 +288,29 @@ func (g *GitHubAdapter) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		}
 		for _, channel := range githubconf.GetIrcChannel() {
 			g.ircbot.Privmsg(channel, create.String())
+		}
+        case "delete":
+                var del GithubDelete
+                var githubconf *GitHubRepositoryConfig
+                var ok bool
+                var err error
+                err = json.Unmarshal(body, &del)
+                if err != nil {
+                        log.Print("Error decoding github delete: ", err)
+                        return
+                }
+                log.Print(del.String())
+                githubconf, ok = g.channels[del.Repository.String()]
+                if !ok {
+                        log.Print("Repository ", del.Repository.String(), " not configured.")
+                        return
+                }
+		if !CheckMAC(body, req.Header.Get("X-Hub-Signature"), githubconf.GetSecret()) {
+			log.Print("DEBUG Spam, spam spam")
+			return
+		}
+		for _, channel := range githubconf.GetIrcChannel() {
+			g.ircbot.Privmsg(channel, del.String())
 		}
 	case "push":
 		var push GithubPush

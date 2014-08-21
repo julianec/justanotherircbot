@@ -20,6 +20,7 @@ func TestFindURLs(t *testing.T) {
 		"Wie sieht es aus wenn man http://starship-factory.ch:8080/ sagt?":                             []string{"http://starship-factory.ch:8080/"},
 		"Wie sieht es aus wenn man http://starship-factory.ch:8080 sagt?":                              []string{"http://starship-factory.ch:8080"},
 		"Wie sieht es aus wenn man http://starship-factory.ch:8080/foo/bar?baz=foo?bar=baz sagt?":      []string{"http://starship-factory.ch:8080/foo/bar?baz=foo?bar=baz"},
+                "Was ist mit Fragezeichen am Ende der Url http://foo.de?":                                      []string{"http://foo.de?"},
 	}
 	for teststring, expected := range teststrings {
 		res = FindURLs(teststring)
