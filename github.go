@@ -22,6 +22,12 @@ type GitHubAdapter struct {
 	channels map[string]*GitHubRepositoryConfig
 }
 
+// Every GithubEvent has a method Strings that returns a slice of string with the text for the irc PRIVMSG.
+type GithubEvent interface {
+        Strings() []string
+        GetRepository() string
+}
+
 type GithubCreate struct {
 	Ref          string
 	RefType      string `json:"ref_type"`
@@ -39,6 +45,35 @@ type GithubDelete struct {
         Repository      GithubRepository
         Sender          GithubUser
 }
+
+type GithubPush struct {
+	Ref        string
+	After      string
+	Before     string
+	Created    bool
+	Deleted    bool
+	Forced     bool
+	Compare    string
+	Commits    []GithubCommit
+	HeadCommit GithubCommit `json:"head_commit"`
+	Repository GithubRepository
+	Pusher     GithubUser
+}
+
+type GithubCommit struct {
+	Id        string
+	Distinct  bool
+	Message   string
+	Timestamp string
+	Url       string
+	Author    GithubUser
+	Committer GithubUser
+	Added     []string
+	Removed   []string
+	Modified  []string
+}
+
+
 
 type GithubRepository struct {
 	Id               uint64
@@ -129,33 +164,6 @@ type GithubUser struct {
 	Email             string
 }
 
-type GithubPush struct {
-	Ref        string
-	After      string
-	Before     string
-	Created    bool
-	Deleted    bool
-	Forced     bool
-	Compare    string
-	Commits    []GithubCommit
-	HeadCommit GithubCommit `json:"head_commit"`
-	Repository GithubRepository
-	Pusher     GithubUser
-}
-
-type GithubCommit struct {
-	Id        string
-	Distinct  bool
-	Message   string
-	Timestamp string
-	Url       string
-	Author    GithubUser
-	Committer GithubUser
-	Added     []string
-	Removed   []string
-	Modified  []string
-}
-
 // CheckMAC returns true if messageMAC is a valid HMAC tag for message.
 func CheckMAC(message []byte, messageMAC string, key string) bool {
 	var err error
@@ -205,7 +213,8 @@ func (g *GithubRepository) String() string {
 
 func (g *GithubCommit) String() string {
 	var lines []string = strings.Split(g.Message, "\n")                // Commit message
-	var text string = g.Author.String() + " \x02" + g.Id[0:7] + "\x0f" // First 7 characters
+	var text string 
+        text = g.Author.String() + " \x02" + g.Id[0:7] + "\x0f" // First 7 characters
 
 	if len(g.Added) > 0 {
 		text += " \x0303" + strings.Join(g.Added, " ") + "\x0f"
@@ -236,12 +245,54 @@ func (g *GithubPush) Strings() []string {
 	return pushes
 }
 
-func (g *GithubCreate) String() string {
-	return "\x0303" + g.Sender.String() + "\x0f has pushed a new " + g.RefType + " \x0305" + g.Ref + "\x0f to \x0303" + g.Repository.String() + "\x0f"
+func (g *GithubPush) GetRepository() string {
+       return g.Repository.String()
 }
 
-func (g *GithubDelete) String() string {
-	return "\x0303" + g.Sender.String() + "\x0f has deleted a " + g.RefType + " \x0305" + g.Ref + "\x0f from \x0303" + g.Repository.String() + "\x0f"
+
+func (g *GithubCreate) Strings() []string {
+	return []string{"\x0303" + g.Sender.String() + "\x0f has pushed a new " + g.RefType + " \x0305" + g.Ref + "\x0f to \x0303" + g.Repository.String() + "\x0f"}
+}
+
+func (g *GithubCreate) GetRepository() string {
+       return g.Repository.String()
+}
+
+func (g *GithubDelete) Strings() []string {
+	return []string{"\x0303" + g.Sender.String() + "\x0f has deleted a " + g.RefType + " \x0305" + g.Ref + "\x0f from \x0303" + g.Repository.String() + "\x0f"}
+}
+
+func (g *GithubDelete) GetRepository() string {
+       return g.Repository.String()
+}
+
+func (g *GitHubAdapter) WriteGithubEvent(event GithubEvent, body []byte, signature string) error {
+        var ok bool
+        var githubconf *GitHubRepositoryConfig
+        var err error
+
+        err = json.Unmarshal(body, &event)
+
+        if err != nil {
+                log.Print("Error decoding github event: ", err)
+                return err
+        }
+
+        githubconf, ok = g.channels[event.GetRepository()]
+        if !ok {
+                log.Print("Repository ", event.GetRepository(), " not configured.")
+                return err
+        }
+        if !CheckMAC(body, signature, githubconf.GetSecret()) {
+                log.Print("DEBUG Spam, spam spam")
+                return err
+        }
+        for _, channel := range githubconf.GetIrcChannel() {
+                for _, commit := range event.Strings() {
+                        g.ircbot.Privmsg(channel, commit)
+                }
+        }
+        return err
 }
 
 func NewGitHubAdapter(ircbot *irc.Connection, config *GitHubConfig) *GitHubAdapter {
@@ -267,80 +318,14 @@ func (g *GitHubAdapter) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 
 	switch req.Header.Get("X-GitHub-Event") {
 	case "create":
-		var create GithubCreate
-		var githubconf *GitHubRepositoryConfig
-		var ok bool
-		var err error
-
-		err = json.Unmarshal(body, &create)
-		if err != nil {
-			log.Print("Error decoding github create: ", err)
-			return
-		}
-		log.Print(create.String())
-		githubconf, ok = g.channels[create.Repository.String()]
-		if !ok {
-			log.Print("Repository ", create.Repository.String(), " not configured.")
-			return
-		}
-		if !CheckMAC(body, req.Header.Get("X-Hub-Signature"), githubconf.GetSecret()) {
-			log.Print("DEBUG Spam, spam spam")
-			return
-		}
-		for _, channel := range githubconf.GetIrcChannel() {
-			g.ircbot.Privmsg(channel, create.String())
-		}
+                var create GithubCreate
+                g.WriteGithubEvent(&create, body, req.Header.Get("X-Hub-Signature"))
         case "delete":
                 var del GithubDelete
-                var githubconf *GitHubRepositoryConfig
-                var ok bool
-                var err error
-
-                err = json.Unmarshal(body, &del)
-                if err != nil {
-                        log.Print("Error decoding github delete: ", err)
-                        return
-                }
-                log.Print(del.String())
-                githubconf, ok = g.channels[del.Repository.String()]
-                if !ok {
-                        log.Print("Repository ", del.Repository.String(), " not configured.")
-                        return
-                }
-		if !CheckMAC(body, req.Header.Get("X-Hub-Signature"), githubconf.GetSecret()) {
-			log.Print("DEBUG Spam, spam spam")
-			return
-		}
-		for _, channel := range githubconf.GetIrcChannel() {
-			g.ircbot.Privmsg(channel, del.String())
-		}
+                g.WriteGithubEvent(&del, body, req.Header.Get("X-Hub-Signature"))
 	case "push":
 		var push GithubPush
-		var ok bool
-		var githubconf *GitHubRepositoryConfig
-		var err error
-
-		err = json.Unmarshal(body, &push)
-
-		if err != nil {
-			log.Print("Error decoding github push: ", err)
-			return
-		}
-
-		githubconf, ok = g.channels[push.Repository.String()]
-		if !ok {
-			log.Print("Repository ", push.Repository.String(), " not configured.")
-			return
-		}
-		if !CheckMAC(body, req.Header.Get("X-Hub-Signature"), githubconf.GetSecret()) {
-			log.Print("DEBUG Spam, spam spam")
-			return
-		}
-		for _, channel := range githubconf.GetIrcChannel() {
-			for _, commit := range push.Strings() {
-				g.ircbot.Privmsg(channel, commit)
-			}
-		}
+                g.WriteGithubEvent(&push, body, req.Header.Get("X-Hub-Signature"))
 	default:
 		log.Print("Unknown GitHub event.", req.Header.Get("X-GitHub-Event"))
 	}
