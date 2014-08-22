@@ -271,6 +271,7 @@ func (g *GitHubAdapter) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		var githubconf *GitHubRepositoryConfig
 		var ok bool
 		var err error
+
 		err = json.Unmarshal(body, &create)
 		if err != nil {
 			log.Print("Error decoding github create: ", err)
@@ -294,6 +295,7 @@ func (g *GitHubAdapter) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
                 var githubconf *GitHubRepositoryConfig
                 var ok bool
                 var err error
+
                 err = json.Unmarshal(body, &del)
                 if err != nil {
                         log.Print("Error decoding github delete: ", err)
@@ -328,6 +330,10 @@ func (g *GitHubAdapter) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		githubconf, ok = g.channels[push.Repository.String()]
 		if !ok {
 			log.Print("Repository ", push.Repository.String(), " not configured.")
+			return
+		}
+		if !CheckMAC(body, req.Header.Get("X-Hub-Signature"), githubconf.GetSecret()) {
+			log.Print("DEBUG Spam, spam spam")
 			return
 		}
 		for _, channel := range githubconf.GetIrcChannel() {
