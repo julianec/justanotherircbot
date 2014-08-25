@@ -14,6 +14,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+        "strconv"
 )
 
 type GitHubAdapter struct {
@@ -213,20 +214,36 @@ func (g *GithubRepository) String() string {
 
 func (g *GithubCommit) String() string {
 	var lines []string = strings.Split(g.Message, "\n")                // Commit message
-	var text string 
+	var text string
+        var short bool = len(g.Added) + len(g.Removed) + len(g.Modified) < 6 // true, if more than 6 files changed
+
         text = g.Author.String() + " \x02" + g.Id[0:7] + "\x0f" // First 7 characters
 
-	if len(g.Added) > 0 {
-		text += " \x0303" + strings.Join(g.Added, " ") + "\x0f"
-	}
+        if short {
+                if len(g.Added) > 0 {
+                        text += " \x0303" + strconv.Itoa(len(g.Added)) + " files added." + "\x0f"
+                }
+                if len(g.Removed) > 0 {
+                        text += " \x0304" + strconv.Itoa(len(g.Removed)) + " files removed." + "\x0f"
+                }
 
-	if len(g.Removed) > 0 {
-		text += " \x0304" + strings.Join(g.Removed, " ") + "\x0f"
-	}
+                if len(g.Modified) > 0 {
+                        text += " \x0310" + strconv.Itoa(len(g.Modified)) + "files modified." + "\x0f"
+                }
 
-	if len(g.Modified) > 0 {
-		text += " \x0310" + strings.Join(g.Modified, " ") + "\x0f"
-	}
+        } else {
+                if len(g.Added) > 0 {
+                        text += " \x0303" + strings.Join(g.Added, " ") + "\x0f"
+                }
+
+                if len(g.Removed) > 0 {
+                        text += " \x0304" + strings.Join(g.Removed, " ") + "\x0f"
+                }
+
+                if len(g.Modified) > 0 {
+                        text += " \x0310" + strings.Join(g.Modified, " ") + "\x0f"
+                }
+        }
 	if len(lines) > 0 {
 		text += " " + lines[0]
 	}
@@ -284,7 +301,7 @@ func (g *GitHubAdapter) WriteGithubEvent(event GithubEvent, body []byte, signatu
                 return err
         }
         if !CheckMAC(body, signature, githubconf.GetSecret()) {
-                log.Print("DEBUG Spam, spam spam")
+                log.Print("DEBUG Signature: ", signature)
                 return err
         }
         for _, channel := range githubconf.GetIrcChannel() {
