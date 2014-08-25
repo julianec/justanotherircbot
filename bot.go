@@ -9,6 +9,14 @@ import (
 	"net/http"
 )
 
+func logErrors(c chan error) {
+        var err error
+
+        for err = range c {
+                log.Print("IRC error: ", err)
+        }
+}
+
 func launchhttpserver(bindto string) {
 	var err error
 	err = http.ListenAndServe(bindto, nil)
@@ -45,6 +53,7 @@ func main() {
 	}
 
 	myircbot = irc.IRC(config.GetBotName(), config.GetBotName())
+        go logErrors(myircbot.ErrorChan()) // collect irc errors and log
 	if err = myircbot.Connect(config.GetServerAddress()); err != nil {
 		log.Fatal("Error connecting to server: ", err)
 	}
