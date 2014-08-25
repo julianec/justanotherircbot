@@ -216,7 +216,7 @@ func (g *GithubCommit) String() string {
 
 	text = g.Author.String() + " \x02" + g.Id[0:7] + "\x0f" // First 7 characters
 
-	if short {
+	if !short {
 		if len(g.Added) > 0 {
 			text += " \x0303" + strconv.Itoa(len(g.Added)) + " files added." + "\x0f"
 		}
@@ -225,7 +225,7 @@ func (g *GithubCommit) String() string {
 		}
 
 		if len(g.Modified) > 0 {
-			text += " \x0310" + strconv.Itoa(len(g.Modified)) + "files modified." + "\x0f"
+			text += " \x0310" + strconv.Itoa(len(g.Modified)) + " files modified." + "\x0f"
 		}
 
 	} else {
