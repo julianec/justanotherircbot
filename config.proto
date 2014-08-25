@@ -14,6 +14,10 @@ message IRCBotConfig {
         // Can be used for web callbacks.
         optional string http_server_address = 4 [default = "localhost:8080"];
 
+        // Maximum number of messages waiting to be delivered before we start
+        // dropping messages
+        optional int32 send_queue_length = 6 [default = 40];
+
         // Settings for GitHub. If ommitted, GitHub support will be disabled.
         optional GitHubConfig github = 5;
 }

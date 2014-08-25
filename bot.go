@@ -26,6 +26,7 @@ func main() {
 	var configpath string // path of config file
 	var configdata []byte
 	var config IRCBotConfig
+	var msgbuffer *MessageBuffer
 
 	flag.StringVar(&configpath, "config", "", "Specify the path to the configuration file.")
 	flag.Parse()
@@ -47,11 +48,12 @@ func main() {
 	if err = myircbot.Connect(config.GetServerAddress()); err != nil {
 		log.Fatal("Error connecting to server: ", err)
 	}
+	msgbuffer = NewMessageBuffer(myircbot, config.GetSendQueueLength())
 
 	extractor = &URLTitleExtractor{
-		ircobject: myircbot,
+		msgbuffer: msgbuffer,
 	}
-	github = NewGitHubAdapter(myircbot, config.GetGithub())
+	github = NewGitHubAdapter(msgbuffer, config.GetGithub())
 
 	//Join all channels.
 	for _, channelname = range config.GetIrcChannel() {

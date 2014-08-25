@@ -8,25 +8,24 @@ import (
 	"crypto/sha512"
 	"encoding/hex"
 	"encoding/json"
-	"github.com/thoj/go-ircevent"
 	"hash"
 	"io/ioutil"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
-        "strconv"
 )
 
 type GitHubAdapter struct {
-	ircbot   *irc.Connection
-	config   *GitHubConfig
-	channels map[string]*GitHubRepositoryConfig
+	msgbuffer *MessageBuffer
+	config    *GitHubConfig
+	channels  map[string]*GitHubRepositoryConfig
 }
 
 // Every GithubEvent has a method Strings that returns a slice of string with the text for the irc PRIVMSG.
 type GithubEvent interface {
-        Strings() []string
-        GetRepository() string
+	Strings() []string
+	GetRepository() string
 }
 
 type GithubCreate struct {
@@ -40,11 +39,11 @@ type GithubCreate struct {
 }
 
 type GithubDelete struct {
-        Ref             string
-        RefType         string `json:"ref_type"`
-        PusherType      string
-        Repository      GithubRepository
-        Sender          GithubUser
+	Ref        string
+	RefType    string `json:"ref_type"`
+	PusherType string
+	Repository GithubRepository
+	Sender     GithubUser
 }
 
 type GithubPush struct {
@@ -73,8 +72,6 @@ type GithubCommit struct {
 	Removed   []string
 	Modified  []string
 }
-
-
 
 type GithubRepository struct {
 	Id               uint64
@@ -213,37 +210,37 @@ func (g *GithubRepository) String() string {
 }
 
 func (g *GithubCommit) String() string {
-	var lines []string = strings.Split(g.Message, "\n")                // Commit message
+	var lines []string = strings.Split(g.Message, "\n") // Commit message
 	var text string
-        var short bool = len(g.Added) + len(g.Removed) + len(g.Modified) < 6 // true, if more than 6 files changed
+	var short bool = len(g.Added)+len(g.Removed)+len(g.Modified) < 6 // true, if more than 6 files changed
 
-        text = g.Author.String() + " \x02" + g.Id[0:7] + "\x0f" // First 7 characters
+	text = g.Author.String() + " \x02" + g.Id[0:7] + "\x0f" // First 7 characters
 
-        if short {
-                if len(g.Added) > 0 {
-                        text += " \x0303" + strconv.Itoa(len(g.Added)) + " files added." + "\x0f"
-                }
-                if len(g.Removed) > 0 {
-                        text += " \x0304" + strconv.Itoa(len(g.Removed)) + " files removed." + "\x0f"
-                }
+	if short {
+		if len(g.Added) > 0 {
+			text += " \x0303" + strconv.Itoa(len(g.Added)) + " files added." + "\x0f"
+		}
+		if len(g.Removed) > 0 {
+			text += " \x0304" + strconv.Itoa(len(g.Removed)) + " files removed." + "\x0f"
+		}
 
-                if len(g.Modified) > 0 {
-                        text += " \x0310" + strconv.Itoa(len(g.Modified)) + "files modified." + "\x0f"
-                }
+		if len(g.Modified) > 0 {
+			text += " \x0310" + strconv.Itoa(len(g.Modified)) + "files modified." + "\x0f"
+		}
 
-        } else {
-                if len(g.Added) > 0 {
-                        text += " \x0303" + strings.Join(g.Added, " ") + "\x0f"
-                }
+	} else {
+		if len(g.Added) > 0 {
+			text += " \x0303" + strings.Join(g.Added, " ") + "\x0f"
+		}
 
-                if len(g.Removed) > 0 {
-                        text += " \x0304" + strings.Join(g.Removed, " ") + "\x0f"
-                }
+		if len(g.Removed) > 0 {
+			text += " \x0304" + strings.Join(g.Removed, " ") + "\x0f"
+		}
 
-                if len(g.Modified) > 0 {
-                        text += " \x0310" + strings.Join(g.Modified, " ") + "\x0f"
-                }
-        }
+		if len(g.Modified) > 0 {
+			text += " \x0310" + strings.Join(g.Modified, " ") + "\x0f"
+		}
+	}
 	if len(lines) > 0 {
 		text += " " + lines[0]
 	}
@@ -263,16 +260,15 @@ func (g *GithubPush) Strings() []string {
 }
 
 func (g *GithubPush) GetRepository() string {
-       return g.Repository.String()
+	return g.Repository.String()
 }
-
 
 func (g *GithubCreate) Strings() []string {
 	return []string{"\x0303" + g.Sender.String() + "\x0f has pushed a new " + g.RefType + " \x0305" + g.Ref + "\x0f to \x0303" + g.Repository.String() + "\x0f"}
 }
 
 func (g *GithubCreate) GetRepository() string {
-       return g.Repository.String()
+	return g.Repository.String()
 }
 
 func (g *GithubDelete) Strings() []string {
@@ -280,47 +276,47 @@ func (g *GithubDelete) Strings() []string {
 }
 
 func (g *GithubDelete) GetRepository() string {
-       return g.Repository.String()
+	return g.Repository.String()
 }
 
 func (g *GitHubAdapter) WriteGithubEvent(event GithubEvent, body []byte, signature string) error {
-        var ok bool
-        var githubconf *GitHubRepositoryConfig
-        var err error
+	var ok bool
+	var githubconf *GitHubRepositoryConfig
+	var err error
 
-        err = json.Unmarshal(body, &event)
+	err = json.Unmarshal(body, &event)
 
-        if err != nil {
-                log.Print("Error decoding github event: ", err)
-                return err
-        }
+	if err != nil {
+		log.Print("Error decoding github event: ", err)
+		return err
+	}
 
-        githubconf, ok = g.channels[event.GetRepository()]
-        if !ok {
-                log.Print("Repository ", event.GetRepository(), " not configured.")
-                return err
-        }
-        if !CheckMAC(body, signature, githubconf.GetSecret()) {
-                log.Print("DEBUG Signature: ", signature)
-                return err
-        }
-        for _, channel := range githubconf.GetIrcChannel() {
-                for _, commit := range event.Strings() {
-                        g.ircbot.Privmsg(channel, commit)
-                }
-        }
-        return err
+	githubconf, ok = g.channels[event.GetRepository()]
+	if !ok {
+		log.Print("Repository ", event.GetRepository(), " not configured.")
+		return err
+	}
+	if !CheckMAC(body, signature, githubconf.GetSecret()) {
+		log.Print("DEBUG Signature: ", signature)
+		return err
+	}
+	for _, channel := range githubconf.GetIrcChannel() {
+		for _, commit := range event.Strings() {
+			g.msgbuffer.AddMessage(channel, commit)
+		}
+	}
+	return err
 }
 
-func NewGitHubAdapter(ircbot *irc.Connection, config *GitHubConfig) *GitHubAdapter {
+func NewGitHubAdapter(msgbuffer *MessageBuffer, config *GitHubConfig) *GitHubAdapter {
 	var channels = make(map[string]*GitHubRepositoryConfig)
 	for _, repo := range config.Repo {
 		channels[repo.GetName()] = repo
 	}
 	return &GitHubAdapter{
-		ircbot:   ircbot,
-		config:   config,
-		channels: channels,
+		msgbuffer: msgbuffer,
+		config:    config,
+		channels:  channels,
 	}
 }
 
@@ -335,14 +331,14 @@ func (g *GitHubAdapter) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 
 	switch req.Header.Get("X-GitHub-Event") {
 	case "create":
-                var create GithubCreate
-                g.WriteGithubEvent(&create, body, req.Header.Get("X-Hub-Signature"))
-        case "delete":
-                var del GithubDelete
-                g.WriteGithubEvent(&del, body, req.Header.Get("X-Hub-Signature"))
+		var create GithubCreate
+		g.WriteGithubEvent(&create, body, req.Header.Get("X-Hub-Signature"))
+	case "delete":
+		var del GithubDelete
+		g.WriteGithubEvent(&del, body, req.Header.Get("X-Hub-Signature"))
 	case "push":
 		var push GithubPush
-                g.WriteGithubEvent(&push, body, req.Header.Get("X-Hub-Signature"))
+		g.WriteGithubEvent(&push, body, req.Header.Get("X-Hub-Signature"))
 	default:
 		log.Print("Unknown GitHub event.", req.Header.Get("X-GitHub-Event"))
 	}

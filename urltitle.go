@@ -18,7 +18,7 @@ func logprivmsgs(event *irc.Event) {
 }
 
 type URLTitleExtractor struct {
-	ircobject *irc.Connection
+	msgbuffer *MessageBuffer
 }
 
 func (t *URLTitleExtractor) WriteURLTitle(event *irc.Event) {
@@ -106,7 +106,8 @@ func (t *URLTitleExtractor) WriteURLTitle(event *irc.Event) {
 		}
 		if htmltag != nil && htmltag.FirstChild != nil && htmltag.FirstChild.Type == html.TextNode {
 			log.Print(htmltag.FirstChild.Data)
-			t.ircobject.Privmsg(event.Arguments[0], "Title: "+strings.TrimSpace(htmltag.FirstChild.Data))
+			// Add a new message to the buffer to be delivered when it's time.
+			t.msgbuffer.AddMessage(event.Arguments[0], "Title: "+strings.TrimSpace(htmltag.FirstChild.Data))
 		}
 	}
 }
