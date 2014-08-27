@@ -278,19 +278,23 @@ func (g *GithubCommit) String() string {
 func (g *GithubIssuesEvent) Strings() []string {
 	switch g.Action {
 	case "assigned":
-		return []string{"\x0303" + g.Sender.String() + "\x0f has " + g.Action + " Issue " + strconv.Itoa(g.Issue.Number) + " " + g.Issue.Title + " to " + g.Issue.Assignee.String() + " " + g.Repository.String() + "\x0f"}
+		return []string{"\x0303" + g.Sender.String() + "\x0f has " + g.Action + " Issue " + strconv.Itoa(g.Issue.Number) + " (" + g.Issue.Title + ") to " + g.Issue.Assignee.String() + ". \x0303" + g.Repository.String() + "\x0f"}
 	case "unassigned":
-		return []string{"\x0303" + g.Sender.String() + "\x0f has " + g.Action + " Issue " + strconv.Itoa(g.Issue.Number) + " " + g.Issue.Title + " from " + g.Issue.Assignee.String() + " " + g.Repository.String() + "\x0f"}
+                if g.Issue.Assignee.String() != "" {
+                        return []string{"\x0303" + g.Sender.String() + "\x0f has " + g.Action + " Issue " + strconv.Itoa(g.Issue.Number) + " (" + g.Issue.Title + ") from " + g.Issue.Assignee.String() + ". \x0303" + g.Repository.String() + "\x0f"}
+                } else {
+                        return []string{"\x0303" + g.Sender.String() + "\x0f has " + g.Action + " Issue " + strconv.Itoa(g.Issue.Number) + " (" + g.Issue.Title + ") from themselves. \x0303" + g.Repository.String() + "\x0f"}
+                }
 	case "labeled":
-		return []string{"\x0303" + g.Sender.String() + "\x0f has " + g.Action + " Issue " + strconv.Itoa(g.Issue.Number) + " " + g.Issue.Title + " with " + g.Label.Name + " " + g.Repository.String() + "\x0f"}
+		return []string{"\x0303" + g.Sender.String() + "\x0f has " + g.Action + " Issue " + strconv.Itoa(g.Issue.Number) + " (" + g.Issue.Title + ") with label " + g.Label.Name + ". \x0303" + g.Repository.String() + "\x0f"}
 	case "unlabeled":
-		return []string{"\x0303" + g.Sender.String() + "\x0f has removed " + g.Label.Name + " from Issue " + strconv.Itoa(g.Issue.Number) + " " + g.Issue.Title + " " + g.Repository.String() + "\x0f"}
+		return []string{"\x0303" + g.Sender.String() + "\x0f has removed label " + g.Label.Name + " from Issue " + strconv.Itoa(g.Issue.Number) + " (" + g.Issue.Title + "). \x0303" + g.Repository.String() + "\x0f"}
 	case "opened":
-                return []string{"\x0303" + g.Sender.String() + "\x0f has " + g.Action + " Issue " + strconv.Itoa(g.Issue.Number) + " " + g.Issue.Title + " " + g.Repository.String() + "\x0f"}
+                return []string{"\x0303" + g.Sender.String() + "\x0f has " + g.Action + " Issue " + strconv.Itoa(g.Issue.Number) + " (" + g.Issue.Title + "). \x0303" + g.Repository.String() + "\x0f"}
 	case "closed":
-                return []string{"\x0303" + g.Sender.String() + "\x0f has " + g.Action + " Issue " + strconv.Itoa(g.Issue.Number) + " " + g.Issue.Title + " " + g.Repository.String() + "\x0f"}
+                return []string{"\x0303" + g.Sender.String() + "\x0f has " + g.Action + " Issue " + strconv.Itoa(g.Issue.Number) + " (" + g.Issue.Title + "). \x0303" + g.Repository.String() + "\x0f"}
 	case "reopened":
-                return []string{"\x0303" + g.Sender.String() + "\x0f has " + g.Action + " Issue " + strconv.Itoa(g.Issue.Number) + " " + g.Issue.Title + " " + g.Repository.String() + "\x0f"}
+                return []string{"\x0303" + g.Sender.String() + "\x0f has " + g.Action + " Issue " + strconv.Itoa(g.Issue.Number) + " (" + g.Issue.Title + "). \x0303" + g.Repository.String() + "\x0f"}
 	default:
 		log.Print("Unsupported Issue Event: " + g.Action)
 	}
