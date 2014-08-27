@@ -73,6 +73,34 @@ type GithubCommit struct {
 	Modified  []string
 }
 
+type GithubIssuesEvent struct {
+	Action     string
+	Issue      GithubIssue
+	Repository GithubRepository
+	Sender     GithubUser
+        Label       GithubIssueLabel
+}
+
+type GithubIssue struct {
+	Url         string
+	LabelsUrl   string `json:"labels_url"`
+	CommentsUrl string `json:"comments_url"`
+	EventsUrl   string `json:"events_url"`
+	HtmlUrl     string `json:"html_url"`
+	Id          int
+	Number      int
+	Title       string
+	User        GithubUser
+	Labels      []GithubIssueLabel
+	Assignee    GithubUser
+}
+
+type GithubIssueLabel struct {
+	Url   string
+	Name  string
+	Color string
+}
+
 type GithubRepository struct {
 	Id               uint64
 	Name             string
@@ -247,6 +275,28 @@ func (g *GithubCommit) String() string {
 	return text
 }
 
+func (g *GithubIssuesEvent) Strings() []string {
+	switch g.Action {
+	case "assigned":
+		return []string{"\x0303" + g.Sender.String() + "\x0f has " + g.Action + " Issue " + strconv.Itoa(g.Issue.Number) + " " + g.Issue.Title + " to " + g.Issue.Assignee.String() + " " + g.Repository.String() + "\x0f"}
+	case "unassigned":
+		return []string{"\x0303" + g.Sender.String() + "\x0f has " + g.Action + " Issue " + strconv.Itoa(g.Issue.Number) + " " + g.Issue.Title + " from " + g.Issue.Assignee.String() + " " + g.Repository.String() + "\x0f"}
+	case "labeled":
+		return []string{"\x0303" + g.Sender.String() + "\x0f has " + g.Action + " Issue " + strconv.Itoa(g.Issue.Number) + " " + g.Issue.Title + " with " + g.Label.Name + " " + g.Repository.String() + "\x0f"}
+	case "unlabeled":
+		return []string{"\x0303" + g.Sender.String() + "\x0f has removed " + g.Label.Name + " from Issue " + strconv.Itoa(g.Issue.Number) + " " + g.Issue.Title + " " + g.Repository.String() + "\x0f"}
+	case "opened":
+                return []string{"\x0303" + g.Sender.String() + "\x0f has " + g.Action + " Issue " + strconv.Itoa(g.Issue.Number) + " " + g.Issue.Title + " " + g.Repository.String() + "\x0f"}
+	case "closed":
+                return []string{"\x0303" + g.Sender.String() + "\x0f has " + g.Action + " Issue " + strconv.Itoa(g.Issue.Number) + " " + g.Issue.Title + " " + g.Repository.String() + "\x0f"}
+	case "reopened":
+                return []string{"\x0303" + g.Sender.String() + "\x0f has " + g.Action + " Issue " + strconv.Itoa(g.Issue.Number) + " " + g.Issue.Title + " " + g.Repository.String() + "\x0f"}
+	default:
+		log.Print("Unsupported Issue Event: " + g.Action)
+	}
+        return []string{"Unsupported Issue Event: " + g.Action}
+}
+
 func (g *GithubPush) Strings() []string {
 	var refs []string = strings.Split(g.Ref, "/")
 	var prefix string = "\x0303" + g.Repository.String() + "\x0f \x0305" + refs[len(refs)-1] + "\x0f"
@@ -276,6 +326,10 @@ func (g *GithubDelete) Strings() []string {
 }
 
 func (g *GithubDelete) GetRepository() string {
+	return g.Repository.String()
+}
+
+func (g *GithubIssuesEvent) GetRepository() string {
 	return g.Repository.String()
 }
 
@@ -339,6 +393,9 @@ func (g *GitHubAdapter) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	case "push":
 		var push GithubPush
 		g.WriteGithubEvent(&push, body, req.Header.Get("X-Hub-Signature"))
+	case "issues":
+		var issue GithubIssuesEvent
+		g.WriteGithubEvent(&issue, body, req.Header.Get("X-Hub-Signature"))
 	default:
 		log.Print("Unknown GitHub event.", req.Header.Get("X-GitHub-Event"))
 	}
