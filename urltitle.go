@@ -5,7 +5,7 @@ import (
 	_ "code.google.com/p/go-charset/data"
 	"code.google.com/p/go.net/html"
 	"code.google.com/p/go.net/html/atom"
-	"github.com/julianec/go-ircevent"
+	"github.com/thoj/go-ircevent"
 	"io"
 	"log"
 	"net/http"

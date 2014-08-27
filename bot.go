@@ -3,7 +3,7 @@ package main
 import (
 	"code.google.com/p/goprotobuf/proto"
 	"flag"
-	"github.com/julianec/go-ircevent"
+	"github.com/thoj/go-ircevent"
 	"io/ioutil"
 	"log"
 	"net/http"

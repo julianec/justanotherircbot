@@ -2,7 +2,7 @@ package main
 
 import (
 	"container/ring"
-	"github.com/julianec/go-ircevent"
+	"github.com/thoj/go-ircevent"
 	"time"
 )
 
