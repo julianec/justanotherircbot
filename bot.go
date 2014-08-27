@@ -3,10 +3,11 @@ package main
 import (
 	"code.google.com/p/goprotobuf/proto"
 	"flag"
-	"github.com/thoj/go-ircevent"
+	"github.com/julianec/go-ircevent"
 	"io/ioutil"
 	"log"
 	"net/http"
+        "sync"
 )
 
 func logErrors(c chan error) {
@@ -53,7 +54,20 @@ func main() {
 	}
 
 	myircbot = irc.IRC(config.GetBotName(), config.GetBotName())
+	if myircbot == nil {
+                log.Fatal("Error calling IRC(nick, user string) *Connection. Nick or User empty.")
+        }
 	go logErrors(myircbot.ErrorChan()) // collect irc errors and log
+
+        // 1: RPL_WELCOME "Welcome to the Internet Relay Network
+        // <nick>!<user>@<host>"
+        var wg sync.WaitGroup
+        wg.Add(1) // Wait for one call to "001"
+        myircbot.AddCallback("001", func(e *irc.Event) {
+                // Indicate that 001 has been called (so the nickname has been set)
+                wg.Done()
+        })
+
 	if err = myircbot.Connect(config.GetServerAddress()); err != nil {
 		log.Fatal("Error connecting to server: ", err)
 	}
@@ -64,7 +78,11 @@ func main() {
 	}
 	github = NewGitHubAdapter(msgbuffer, config.GetGithub())
 
-	//Join all channels.
+        // Wait for the IRC Welcome message (event "001") before joining any
+        // channel. We we make clear the nick has been set.
+        wg.Wait()
+
+        //Join all channels.
 	for _, channelname = range config.GetIrcChannel() {
 		myircbot.Join(channelname)
 	}

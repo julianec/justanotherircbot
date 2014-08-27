@@ -1,5 +1,5 @@
 ircbot
-ircbot.conf
+ircbot*.conf
 *.pb.go
 *.swp
 *~
