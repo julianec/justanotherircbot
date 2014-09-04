@@ -7,7 +7,6 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
-        "sync"
 )
 
 func logErrors(c chan error) {
@@ -61,11 +60,11 @@ func main() {
 
         // 1: RPL_WELCOME "Welcome to the Internet Relay Network
         // <nick>!<user>@<host>"
-        var wg sync.WaitGroup
-        wg.Add(1) // Wait for one call to "001"
         myircbot.AddCallback("001", func(e *irc.Event) {
-                // Indicate that 001 has been called (so the nickname has been set)
-                wg.Done()
+                //Join all channels.
+                for _, channelname = range config.GetIrcChannel() {
+                        myircbot.Join(channelname)
+                }
         })
 
 	if err = myircbot.Connect(config.GetServerAddress()); err != nil {
@@ -77,15 +76,6 @@ func main() {
 		msgbuffer: msgbuffer,
 	}
 	github = NewGitHubAdapter(msgbuffer, config.GetGithub())
-
-        // Wait for the IRC Welcome message (event "001") before joining any
-        // channel. We we make clear the nick has been set.
-        wg.Wait()
-
-        //Join all channels.
-	for _, channelname = range config.GetIrcChannel() {
-		myircbot.Join(channelname)
-	}
 
 	//Event handling
 	myircbot.AddCallback("PRIVMSG", logprivmsgs)
