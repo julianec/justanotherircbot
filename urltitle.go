@@ -3,8 +3,8 @@ package main
 import (
 	"code.google.com/p/go-charset/charset"
 	_ "code.google.com/p/go-charset/data"
-	"code.google.com/p/go.net/html"
-	"code.google.com/p/go.net/html/atom"
+	"golang.org/x/net/html"
+	"golang.org/x/net/html/atom"
 	"github.com/thoj/go-ircevent"
 	"io"
 	"log"

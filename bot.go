@@ -1,7 +1,7 @@
 package main
 
 import (
-	"code.google.com/p/goprotobuf/proto"
+	"github.com/golang/protobuf/proto"
 	"flag"
 	"github.com/thoj/go-ircevent"
 	"io/ioutil"
