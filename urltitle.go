@@ -1,8 +1,7 @@
 package main
 
 import (
-	"code.google.com/p/go-charset/charset"
-	_ "code.google.com/p/go-charset/data"
+	"golang.org/x/net/html/charset"
 	"golang.org/x/net/html"
 	"golang.org/x/net/html/atom"
 	"github.com/thoj/go-ircevent"
@@ -63,7 +62,7 @@ func (t *URLTitleExtractor) WriteURLTitle(event *irc.Event) {
 
 		if foundcharset != "" && strings.ToLower(foundcharset) != "utf-8" && strings.ToLower(foundcharset) != "utf8" {
 			log.Print("Converting from ", foundcharset, " to UTF-8")
-			ureader, err = charset.NewReader(foundcharset, resp.Body)
+			ureader, err = charset.NewReader(resp.Body, foundcharset)
 			if err != nil {
 				log.Print("Error during utf-8 transformation: ", err)
 				continue
