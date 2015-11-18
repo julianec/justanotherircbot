@@ -40,16 +40,20 @@ func main() {
 	flag.Parse()
 
 	configdata, err = ioutil.ReadFile(configpath)
-	if err != nil {
-		log.Fatal("Error reading config file: ", err)
-	}
-
-	err = proto.Unmarshal(configdata, &config)
-	if err != nil {
-		err = proto.UnmarshalText(string(configdata), &config)
-	}
-	if err != nil {
-		log.Fatal("Error parsing config: ", err)
+	if err == nil {
+		err = proto.Unmarshal(configdata, &config)
+		if err != nil {
+			err = proto.UnmarshalText(string(configdata), &config)
+		}
+		if err != nil {
+			log.Fatal("Error parsing config: ", err)
+		}
+	} else {
+		var nerr = proto.UnmarshalText(configpath, &config)
+		if nerr != nil {
+			log.Print("Error parsing config: ", nerr)
+			log.Fatal("Error reading config file: ", err)
+		}
 	}
 
 	myircbot = irc.IRC(config.GetBotName(), config.GetBotName())
